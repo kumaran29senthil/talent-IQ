@@ -1,29 +1,30 @@
 import express from "express";
-import {ENV} from "./lib/env.js";
+import { ENV } from "./lib/env.js";
 import path from "path";
 
 const app = express();
-const __dirname = path.resolve();
 
-app.get("/health",(req,res)=>{
-    res.status(200).json({msg:"Hi Appian"});
-})
+app.get("/health", (req, res) => {
+    res.status(200).json({ msg: "Hi Appian" });
+});
 
-app.get("/books",(req,res)=>{
-    res.status(200).json({msg:"Hi Kumaran"});
-})
+app.get("/books", (req, res) => {
+    res.status(200).json({ msg: "Hi Kumaran" });
+});
 
+if (ENV.NODE_ENV === "production") {
+    // This points directly to backend/src. We step up twice to hit the frontend folder cleanly.
+    const frontendDist = path.resolve(import.meta.dirname, "../../frontend/dist");
 
-if(ENV.NODE_ENV === "production"){
-    app.use(express.static(path.join(__dirname,"frontend","dist")));
+    // Serve the static build folder
+    app.use(express.static(frontendDist));
 
+    // Handle the Express v5 Catch-All
     app.get("/*splat", (req, res) => {
-        res.sendFile(path.join(__dirname,"frontend","dist","index.html"))
-    })
+        res.sendFile(path.join(frontendDist, "index.html"));
+    });
 }
 
-
-
-app.listen(ENV.PORT,()=> {
-    console.log("Server is running on port " + ENV.PORT)
+app.listen(ENV.PORT, () => {
+    console.log("Server is running on port " + ENV.PORT);
 });
