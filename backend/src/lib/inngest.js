@@ -4,7 +4,9 @@ import User from "../models/User.js";
 import { deleteStreamUser, upsertStreamUser } from "./stream.js";
 
 // Create a client to send and receive events from Inngest
-export const inngest = new Inngest({ id: "talent-iq" });
+export const inngest = new Inngest({
+  id: "talent-iq",
+});
 
 const syncUser = inngest.createFunction(
   {
@@ -18,7 +20,13 @@ const syncUser = inngest.createFunction(
   async ({ event }) => {
     await connectDB();
 
-    const { id, email_addresses, first_name, last_name, image_url } = event.data;
+    const {
+      id,
+      email_addresses,
+      first_name,
+      last_name,
+      image_url,
+    } = event.data;
 
     const newUser = {
       clerkId: id,
@@ -27,6 +35,7 @@ const syncUser = inngest.createFunction(
       profileImage: image_url,
     };
 
+    // Sync MongoDB
     await User.findOneAndUpdate(
       { clerkId: id },
       { $set: newUser },
@@ -37,14 +46,16 @@ const syncUser = inngest.createFunction(
       }
     );
 
-
-    await upsertStreamUser({
-        id: newUser.clerkId.toString(),
+    // Sync Stream (don't fail the whole job if Stream is unavailable)
+    try {
+      await upsertStreamUser({
+        id: newUser.clerkId,
         name: newUser.name,
-        image: newUser.profileImage
-    })
-
-    // TODO: later
+        image: newUser.profileImage,
+      });
+    } catch (error) {
+      console.error("Failed to sync Stream user:", error);
+    }
   }
 );
 
@@ -62,11 +73,15 @@ const deleteUserFromDB = inngest.createFunction(
 
     const { id } = event.data;
 
+    // Delete from MongoDB
     await User.deleteOne({ clerkId: id });
 
-
-    await deleteStreamUser(id.toString())   
-    // TODO: later
+    // Delete from Stream (don't fail the whole job if Stream is unavailable)
+    try {
+      await deleteStreamUser(id);
+    } catch (error) {
+      console.error("Failed to delete Stream user:", error);
+    }
   }
 );
 
