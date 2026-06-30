@@ -1,20 +1,25 @@
 import { StreamChat } from "stream-chat";
 import { ENV } from "./env.js";
 
-const apiKey = ENV.STREAM_API_KEY;
-const apiSecret = ENV.STREAM_API_SECRET;
+let chatClient = null;
 
-// Fail fast if credentials are missing
-if (!apiKey || !apiSecret) {
-  throw new Error("Stream API Key or Stream API Secret is missing.");
-}
+const getChatClient = () => {
+  if (chatClient) return chatClient;
 
-export const chatClient = StreamChat.getInstance(apiKey, apiSecret);
+  const apiKey = ENV.STREAM_API_KEY;
+  const apiSecret = ENV.STREAM_API_SECRET;
 
-// Create or update a Stream user
+  if (!apiKey || !apiSecret) {
+    throw new Error("Stream API credentials are missing.");
+  }
+
+  chatClient = StreamChat.getInstance(apiKey, apiSecret);
+  return chatClient;
+};
+
 export const upsertStreamUser = async (userData) => {
   try {
-    await chatClient.upsertUser(userData);
+    await getChatClient().upsertUser(userData);
     console.log(`✅ Stream user synced: ${userData.id}`);
   } catch (error) {
     console.error("❌ Error upserting Stream user:", error);
@@ -22,15 +27,12 @@ export const upsertStreamUser = async (userData) => {
   }
 };
 
-// Delete a Stream user
 export const deleteStreamUser = async (userId) => {
   try {
-    await chatClient.deleteUser(userId);
+    await getChatClient().deleteUser(userId);
     console.log(`✅ Stream user deleted: ${userId}`);
   } catch (error) {
     console.error("❌ Error deleting Stream user:", error);
     throw error;
   }
 };
-
-// TODO: Generate Stream user token
