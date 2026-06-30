@@ -2,50 +2,54 @@ import { Inngest } from "inngest";
 import { connectDB } from "./db.js";
 import User from "../models/User.js";
 
-//create a client to send and receive events from inngest
-
-export const inngest = new Inngest({id:"talent-iq"});
+// Create a client to send and receive events from Inngest
+export const inngest = new Inngest({ id: "talent-iq" });
 
 const syncUser = inngest.createFunction(
-    {
-        id:"sync-user",
-        event:"clerk/user.created"
-    },
-    async ({event}) => {
-        await connectDB()
+  {
+    id: "sync-user",
+    event: "clerk/user.created",
+  },
+  async ({ event }) => {
+    await connectDB();
 
-        const {id,email_addresses, first_name, last_name, image_url} = event.data
+    const { id, email_addresses, first_name, last_name, image_url } = event.data;
 
-        const newUser = {
-            clerkID: id,
-            email: email_addresses[0]?.email_address,
-            name : `${first_name || ""} ${last_name || ""}`,
-            profileImage:image_url
-        }
+    const newUser = {
+      clerkId: id,
+      email: email_addresses[0]?.email_address,
+      name: `${first_name || ""} ${last_name || ""}`.trim(),
+      profileImage: image_url,
+    };
 
-        await User.create(newUser)
+    await User.findOneAndUpdate(
+      { clerkId: id },
+      { $set: newUser },
+      {
+        upsert: true,
+        new: true,
+        setDefaultsOnInsert: true,
+      }
+    );
 
-        // todo: later
-    }
-)
-
-
-const deleteUserFromDB = inngest.createFunction(
-    {
-        id:"delete-user-from-db",
-        event:"clerk/user.deleted"
-    },
-    async ({event}) => {
-        await connectDB()
-
-        const {id} = event.data;
-
-        await User.deleteOne({clerkId: id});
-
-        // todo: later
-    }
+    // TODO: later
+  }
 );
 
+const deleteUserFromDB = inngest.createFunction(
+  {
+    id: "delete-user-from-db",
+    event: "clerk/user.deleted",
+  },
+  async ({ event }) => {
+    await connectDB();
 
+    const { id } = event.data;
+
+    await User.deleteOne({ clerkId: id });
+
+    // TODO: later
+  }
+);
 
 export const functions = [syncUser, deleteUserFromDB];
